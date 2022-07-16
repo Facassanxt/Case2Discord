@@ -47,23 +47,32 @@ class MyHandler(FileSystemEventHandler):
                 jcase = json.load(f)
 
             num = result[4]
-            api_price = "https://steamcommunity.com/market/priceoverview/?currency=5&appid=730&market_hash_name=" + jcase[num]["eng_case_name"]
-            rq = requests.get(api_price).json()
-            try:
-                case_price = rq['lowest_price']
-            except :
-                case_price = rq['median_price']
-            
             discordwebhook = "https://discord.com/api/webhooks/996905511519780964/JnhHM8OOfaemo4cmoG1QfTTp-hM2lGP8MrpjZlYeHZpkTH_gg96OKOBsLx8TOjv4pQ1f"
             lang = "eng_case_name"
             data_time = result[0] + " " + result[1]
             user_login = result[2]
             user_profile = "https://steamcommunity.com/profiles/" + str(user_steamid)
-            case_name = jcase[num][lang]
-            case_url = jcase[num]["image_url"]
-            text_price = "Цена: `{}`".format(case_price)
+            try:
+                case_name = jcase[num][lang]
+                market_case = jcase[num]["eng_case_name"]
+                case_url = jcase[num]["image_url"]
+                text_price = "Цена: `{}`".format(Price_Cases[num])
+                market_url = ("https://steamcommunity.com/market/listings/730/" + market_case).replace(" ","%20")
+            except:
+                case_name = "Неизвестный кейс"
+                market_url = None
+                case_url = None
+                text_price = None
+            with open("Discord.json", encoding = 'utf-8') as f:
+                discord = json.load(f)
+            for id in discord:
+                if id != "_comment":
+                    if user_steamid in discord[id]:
+                        if text_price != None:
+                            text_price += " <@{}>".format(id)
+                        else:
+                            text_price = "<@{}>".format(id)
             Random_color = ''.join([random.choice('0123456789ABCDEF') for i in range(6)])
-            market_url = ("https://steamcommunity.com/market/listings/730/" + jcase[num]["eng_case_name"]).replace(" ","%20")
             print(case_name,case_url,market_url,text_price)
             data = {
                 "username" : "Drops_Cases",
@@ -76,17 +85,14 @@ class MyHandler(FileSystemEventHandler):
                     "fields": [
                         {
                         "name": "ᅠ ᅠ",
-                        "value": "[`Профиль`]({}) [`Инвентарь`]({}) [`Маркет`]({})".format(user_profile,user_profile+"/inventory/#730",market_url)
+                        "value": "[`Профиль`]({}) [`Инвентарь`]({}) [`Маркет`]({})".format(user_profile,user_profile+"/inventory/#730",market_url) \
+                        +"\n\n :hourglass_flowing_sand:" + data_time + ":hourglass:",
                         }
                     ],
                     "author": {
                         "name": user_login,
                         "url": user_profile,
                         "icon_url": user_avatar
-                    },
-                    "footer": {
-                        "text": data_time,
-                        "icon_url": "https://img2.freepng.ru/20180622/uyc/kisspng-computer-icons-time-attendance-clocks-part-time-5b2d9a3b4eb127.8685744515297152593223.jpg"
                     },
                     "thumbnail": {
                         "url": case_url
@@ -105,19 +111,21 @@ def Price_parser():
     while True:
         for num in json_case:
             try:
-                api_price = "https://steamcommunity.com/market/priceoverview/?currency=5&appid=730&market_hash_name=" + json_case[num]["eng_case_name"]
+                api_price = "https://steamcommunity.com/market/priceoverview/?currency=5&appid=730&market_hash_name=" + json_case[num]["eng_case_name"].replace("&","%26")
+                api_price = requests.get(api_price).json()
                 try:
-                    price = api_price['lowest_price'].split()[0]
+                    price = api_price['lowest_price']
                 except:
-                    price = api_price['median_price'].split()[0]
+                    price = api_price['median_price']
                 Price_Cases.update({num: price})
-                print(num, json_case[num]["eng_case_name"], price)
-                time.sleep(3)
-            except:
+                print(num, json_case[num]["ru_case_name"], price)
+                time.sleep(6)
+            except Exception as e:
+                print(e)
                 time.sleep(60*60) #1 час
         time.sleep(6*60*60) #12 часов
 
 if __name__=="__main__":
-    threading.Thread(target=Price_parser).start()
+    #threading.Thread(target=Price_parser).start()
     w = Watcher(".", MyHandler())
     w.run()
