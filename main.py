@@ -6,7 +6,6 @@ import requests
 import threading
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from discord_webhook import DiscordEmbed, DiscordWebhook
 
 class Watcher:
     def __init__(self, directory=".", handler=FileSystemEventHandler()):
@@ -30,9 +29,10 @@ class Watcher:
 class MyHandler(FileSystemEventHandler):
 
     def on_any_event(self, event):
-        if event.src_path[2:] == "text.txt":
+        print(event)
+        if event.src_path == "C:\\SteamCMD\\steamapps\\common\\Counter-Strike Global Offensive Beta - Dedicated Server\\csgo\\addons\\sourcemod\\logs\\DropsSummoner.log":
             print(event)
-            with open("text.txt", encoding = 'utf-8') as f:
+            with open("C:\\SteamCMD\\steamapps\\common\\Counter-Strike Global Offensive Beta - Dedicated Server\\csgo\\addons\\sourcemod\\logs\\DropsSummoner.log", encoding = 'utf-8') as f:
                 last_line = f.readlines()[-1]
             result = re.findall(r'^L ([0-9\/]*) - ([0-9]{2}:[0-9]{2}:[0-9]{2}).*Игроку (.*)<[0-9]{1,5}><(.*)><.*> выпало \[?([0-9]*)', last_line)[0]
             user_steamid = int(result[3].split(":")[2])*2+int(result[3].split(":")[1])+76561197960265728
@@ -127,5 +127,5 @@ def Price_parser():
 
 if __name__=="__main__":
     #threading.Thread(target=Price_parser).start()
-    w = Watcher(".", MyHandler())
+    w = Watcher("C:\\SteamCMD\\steamapps\\common\\Counter-Strike Global Offensive Beta - Dedicated Server\\csgo\\addons\\sourcemod\\logs", MyHandler())
     w.run()
