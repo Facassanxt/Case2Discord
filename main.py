@@ -1,4 +1,7 @@
+from calendar import prcal
 import json
+from msilib.schema import File
+import os
 import re
 import time
 import random
@@ -25,18 +28,19 @@ class Watcher:
         self.observer.join()
         print("\nWatcher Terminated\n")
 
-
 class MyHandler(FileSystemEventHandler):
 
     def on_any_event(self, event):
-        print(event)
-        if event.src_path == "C:\\SteamCMD\\steamapps\\common\\Counter-Strike Global Offensive Beta - Dedicated Server\\csgo\\addons\\sourcemod\\logs\\DropsSummoner.log":
+        drop_path = os.path.join(DIRECTORY,FILE)
+        if event.src_path == drop_path:
             print(event)
-            with open("C:\\SteamCMD\\steamapps\\common\\Counter-Strike Global Offensive Beta - Dedicated Server\\csgo\\addons\\sourcemod\\logs\\DropsSummoner.log", encoding = 'utf-8') as f:
+            with open(drop_path, encoding = 'utf-8') as f:
                 last_line = f.readlines()[-1]
+            os.remove(drop_path)
+            with open(drop_path, mode='a'): pass
             result = re.findall(r'^L ([0-9\/]*) - ([0-9]{2}:[0-9]{2}:[0-9]{2}).*Игроку (.*)<[0-9]{1,5}><(.*)><.*> выпало \[?([0-9]*)', last_line)[0]
             user_steamid = int(result[3].split(":")[2])*2+int(result[3].split(":")[1])+76561197960265728
-            api_user = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={}&steamids={}".format("",user_steamid)
+            api_user = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={}&steamids={}".format(STEAM_API_DEV_KEY,user_steamid)
             try:
                 rq = requests.get(api_user).json()
                 user_avatar = rq['response']['players'][0]['avatarfull']
@@ -47,13 +51,11 @@ class MyHandler(FileSystemEventHandler):
                 jcase = json.load(f)
 
             num = result[4]
-            discordwebhook = "https://discord.com/api/webhooks/996905511519780964/JnhHM8OOfaemo4cmoG1QfTTp-hM2lGP8MrpjZlYeHZpkTH_gg96OKOBsLx8TOjv4pQ1f"
-            lang = "eng_case_name"
             data_time = result[0] + " " + result[1]
             user_login = result[2]
             user_profile = "https://steamcommunity.com/profiles/" + str(user_steamid)
             try:
-                case_name = jcase[num][lang]
+                case_name = jcase[num]["eng_case_name"]
                 market_case = jcase[num]["eng_case_name"]
                 case_url = jcase[num]["image_url"]
                 text_price = "Цена: `{}`".format(Price_Cases[num])
@@ -101,7 +103,7 @@ class MyHandler(FileSystemEventHandler):
                 ],
                 "attachments": []
                 }
-            resp = requests.post(discordwebhook, json=data)
+            resp = requests.post(DISCORDWEBHOOK, json=data)
             print(resp)
 
 Price_Cases = {}
@@ -125,7 +127,12 @@ def Price_parser():
                 time.sleep(60*60) #1 час
         time.sleep(6*60*60) #12 часов
 
+DIRECTORY = r"C:\SteamCMD\steamapps\common\Counter-Strike Global Offensive Beta - Dedicated Server\csgo\addons\sourcemod\logs"
+FILE = r"DropsSummoner.log"
+DISCORDWEBHOOK = ""
+STEAM_API_DEV_KEY = ""
+
 if __name__=="__main__":
     #threading.Thread(target=Price_parser).start()
-    w = Watcher("C:\\SteamCMD\\steamapps\\common\\Counter-Strike Global Offensive Beta - Dedicated Server\\csgo\\addons\\sourcemod\\logs", MyHandler())
+    w = Watcher(DIRECTORY, MyHandler())
     w.run()
