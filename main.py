@@ -154,7 +154,7 @@ class MyHandler(FileSystemEventHandler):
                 except Exception as e:
                     print(e)
                     time.sleep(60*60) #1 час
-            time.sleep(6*60*60) #12 часов
+            time.sleep(6*60*60) #6 часов
 
 def main():
     directory = r"C:\SteamCMD\steamapps\common\Counter-Strike Global Offensive Beta - Dedicated Server\csgo\addons\sourcemod\logs"
