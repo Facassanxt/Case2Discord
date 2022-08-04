@@ -1,14 +1,14 @@
-from calendar import prcal
 import json
-from msilib.schema import File
 import os
-import re
-import time
 import random
-import requests
+import re
 import threading
-from watchdog.observers import Observer
+import time
+
+import requests
+from dotenv import load_dotenv
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 class Watcher:
     def __init__(self, directory=".", handler=FileSystemEventHandler()):
@@ -35,6 +35,7 @@ class MyHandler(FileSystemEventHandler):
         self.discordwebhook = discordwebhook
         self.steam_api_dev_key = steam_api_dev_key
         self.drop_path = os.path.join(self.directory,self.file)
+        self.Price_Cases = {}
 
     def _read_file(self,file_name=None,jfile=False):
         if not jfile:
@@ -49,8 +50,8 @@ class MyHandler(FileSystemEventHandler):
         if case_index in jcase:
             case_name = jcase[case_index]["eng_case_name"]
             case_url = jcase[case_index]["image_url"]
-            if case_index in Price_Cases:
-                text_price = "Цена: `{}`".format(Price_Cases[case_index])
+            if case_index in self.Price_Cases:
+                text_price = "Цена: `{}`".format(self.Price_Cases[case_index])
             else:
                 text_price = "Цена: `Неизвестна`"
             market_url = ("https://steamcommunity.com/market/listings/730/" + case_name).replace(" ","%20")
@@ -131,14 +132,15 @@ class MyHandler(FileSystemEventHandler):
             queue = self._read_file()
             for line in queue.splitlines():
                 data_time,user_login,user_avatar,user_steamid,case_index,user_profile = self._parser_logs(line)
-                jcase = self._read_file("Case.json",True)
+                jcase = self._read_file(os.path.join(os.path.dirname(__file__), 'Case.json'),True)
                 case_name,case_url,market_url,text_price = self._check_case_availability(case_index,jcase)
-                jdiscord = self._read_file("Discord.json",True)
+                jdiscord = self._read_file(os.path.join(os.path.dirname(__file__), 'Discord.json'),True)
                 text_price = self._discord_id_alert(jdiscord,user_steamid,text_price)
                 self._request_post_generation(case_name,text_price,market_url,user_profile,data_time,user_login,user_avatar,case_url)
 
     def Price_parser(self):
-        jcase = self._read_file("Case.json",True)
+        case = os.path.join(os.path.dirname(__file__), 'Case.json')
+        jcase = self._read_file(case,True)
         while True:
             for num in jcase:
                 try:
@@ -148,7 +150,7 @@ class MyHandler(FileSystemEventHandler):
                         price = api_price['lowest_price']
                     except:
                         price = api_price['median_price']
-                    Price_Cases.update({num: price})
+                    self.Price_Cases.update({num: price})
                     print(num, jcase[num]["ru_case_name"], price)
                     time.sleep(6)
                 except Exception as e:
@@ -156,16 +158,26 @@ class MyHandler(FileSystemEventHandler):
                     time.sleep(60*60) #1 час
             time.sleep(6*60*60) #6 часов
 
-def main():
-    directory = r"C:\SteamCMD\steamapps\common\Counter-Strike Global Offensive Beta - Dedicated Server\csgo\addons\sourcemod\logs"
-    file = r"DropsSummoner.log"
-    discordwebhook = ""
-    steam_api_dev_key = ""
-    My = MyHandler(directory,file,discordwebhook,steam_api_dev_key)
+def price_tracking_flow(drop_path,My):
     threading.Thread(target=My.Price_parser).start()
-    w = Watcher(directory, My)
+    w = Watcher(drop_path, My)
     w.run()
 
 if __name__=="__main__":
-    Price_Cases = {}
-    main()
+    dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+    if os.path.exists(dotenv_path):
+        load_dotenv(dotenv_path)
+        steam_api_dev_key = os.getenv("STEAM_API_DEV_KEY")
+        discordwebhook = os.getenv("DISCORD_WEBHOOK")
+        drop_path = os.getenv("DROP_PATH")
+        if steam_api_dev_key in [None,""] or discordwebhook in [None,""] or drop_path in [None,""]:
+            print("[ERROR] Переменные не установлены в .env")
+        else:
+            DropsSummoner = r"DropsSummoner.log"
+            My = MyHandler(drop_path,DropsSummoner,discordwebhook,steam_api_dev_key)
+            price_tracking_flow(drop_path,My)
+    else:
+        print('[ERROR] Файл конфигурации не найден')
+        with open('.env', 'w') as f:
+            f.write("DISCORD_WEBHOOK = ''\nSTEAM_API_DEV_KEY = ''\nDROP_PATH = ''")
+    input("Нажмите любую клавишу для выхода...")
